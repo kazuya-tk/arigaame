@@ -726,7 +726,11 @@ if(API.pollMs)setInterval(function(){var a=document.activeElement;if(document.vi
 /* ===== PWA：オフライン用キャッシュ & 「ホーム画面に追加」の案内 ===== */
 (function(){
   if('serviceWorker' in navigator && location.protocol!=='file:'){
-    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(e){console.warn('SW',e)})});
+    var hadCtrl=!!navigator.serviceWorker.controller, reloaded=false;
+    navigator.serviceWorker.addEventListener('controllerchange',function(){ if(hadCtrl&&!reloaded){reloaded=true;location.reload();} });
+    window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(reg){
+      reg.update(); document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible') reg.update(); });
+    }).catch(function(e){console.warn('SW',e)})});
   }
   var standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
   if(standalone) return;

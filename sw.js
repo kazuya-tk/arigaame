@@ -1,5 +1,5 @@
 /* ありが飴 Service Worker：アプリ本体をキャッシュして、すばやく・オフラインでも開けるように */
-var VERSION='arigaame-3310820e2d';
+var VERSION='arigaame-bb64e6767a';
 var SHELL=['./','./index.html','./config.js','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./icons/favicon-32.png'];
 self.addEventListener('install',function(e){
@@ -21,6 +21,8 @@ self.addEventListener('fetch',function(e){
   e.respondWith(caches.open(VERSION).then(function(cache){
     /* config.js は設定変更がすぐ反映されるようネット優先 */
     if(same&&/config\.js$/.test(u.pathname)) return fromNetwork(req,cache).catch(function(){return cache.match(req)});
+    /* ページ本体（index.html）はネット優先：更新がすぐ届くように。オフライン時だけキャッシュ */
+    if(same&&(req.mode==='navigate'||/(\/|index\.html)$/.test(u.pathname))) return fetch(req,{cache:'no-store'}).then(function(res){ if(res&&res.ok) cache.put('./index.html',res.clone()); return res; }).catch(function(){return cache.match('./index.html')});
     /* それ以外はキャッシュで即表示しつつ裏で更新（stale-while-revalidate） */
     return cache.match(req,{ignoreSearch:same}).then(function(hit){
       var net=fromNetwork(req,cache).catch(function(){return hit||(req.mode==='navigate'?cache.match('./index.html'):undefined)});
