@@ -319,29 +319,41 @@ var Passcode=(function(){
   }
   return {run:run};
 })();
-/* ===== データ保存：Apps Script の JSON API（PWA版）。config.js の API_URL が空ならデモモード ===== */
+/* ===== データ保存：共有 API（PWA版）。config.js の API_URL が空ならデモモード =====
+ *  - Cloudflare Worker（おすすめ）… https://arigaame-api.xxx.workers.dev
+ *  - Apps Script（旧方式）       … https://script.google.com/macros/s/…/exec  （自動で判別） */
 (function(){
   var cfg=window.ARIGAAME_CONFIG||{}, url=String(cfg.API_URL||'').trim();
   if(!url){
     API.banner='📱 デモモード：データはこの端末にだけ保存されます（みんなで共有するには config.js に API の URL を設定）';
     return;
   }
+  var GAS=cfg.API_TYPE==='gas'||/script\.google(usercontent)?\.com/.test(url);
+  var base=url.replace(/\/+$/,'');
   var CACHE='arigaame-cache-v1';
   function save(d){try{localStorage.setItem(CACHE,JSON.stringify(d))}catch(e){}return d}
-  function req(action,args,pass){
+  function netErr(){throw new Error(navigator.onLine===false?'オフラインです':'つながりませんでした')}
+  function unwrap(r){
+    return r.json().catch(function(){throw new Error(r.ok?'API の応答が読めませんでした':'サーバーエラー（'+r.status+'）')})
+      .then(function(j){ if(!j||!j.ok) throw new Error((j&&j.error)||('サーバーエラー（'+r.status+'）')); return save(j.data); });
+  }
+  /* Cloudflare Worker：JSON の REST API、合言葉は X-Passcode ヘッダー */
+  function worker(action,args,pass){
+    var path={get:'/api/data',add:'/api/candies',eat:'/api/candies/'+encodeURIComponent(args[0]||'')+'/eat',thank:'/api/candies/'+encodeURIComponent(args[0]||'')+'/thanks'}[action];
+    var body={add:args[0],thank:args[1]}[action];
+    var h={'X-Passcode':encodeURIComponent(pass||'')}; if(body) h['Content-Type']='application/json';
+    return fetch(base+path,{method:action==='get'?'GET':'POST',headers:h,cache:'no-store',body:body?JSON.stringify(body):undefined}).then(unwrap,netErr);
+  }
+  /* Apps Script：text/plain の POST（プリフライトなし） */
+  function gas(action,args,pass){
     var p = action==='get'
       ? fetch(url+(url.indexOf('?')<0?'?':'&')+'action=get&pass='+encodeURIComponent(pass||'')+'&_='+Date.now(),{cache:'no-store'})
-      /* text/plain にすると CORS のプリフライトが発生せず Apps Script でも通る */
       : fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:action,args:args,pass:pass||''})});
-    return p.then(function(r){
-      if(!r.ok) throw new Error('サーバーエラー（'+r.status+'）');
-      return r.json().catch(function(){throw new Error('API の応答が読めませんでした（公開設定を確認してね）')});
-    },function(){ throw new Error(navigator.onLine===false?'オフラインです':'つながりませんでした'); })
-    .then(function(j){ if(!j||!j.ok) throw new Error((j&&j.error)||'エラーが起きました'); return save(j.data); });
+    return p.then(unwrap,netErr);
   }
-  function go(action,args){return Passcode.run(function(p){return req(action,args,p)})}
+  function go(action,args){return Passcode.run(function(p){return (GAS?gas:worker)(action,args,p)})}
   API={
-    pollMs:30000,
+    pollMs:GAS?30000:12000, /* 画面が見えている間だけ、この間隔で最新を取得 */
     cached:function(){try{return JSON.parse(localStorage.getItem(CACHE))}catch(e){return null}},
     getData:function(){return go('get',[])},
     addCandy:function(c){return go('add',[c])},
@@ -647,7 +659,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()
 if(API.cached){var cached=API.cached();if(cached)apply(cached)}
 refresh();
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&API.pollMs&&!busy&&!sheet)refresh(true)});
-if(API.pollMs)setInterval(function(){var a=document.activeElement;if(busy||sheet==='add'||msgOpen||(a&&a.tagName==='INPUT'))return;refresh(true)},API.pollMs);
+if(API.pollMs)setInterval(function(){var a=document.activeElement;if(document.visibilityState!=='visible'||busy||sheet==='add'||msgOpen||(a&&a.tagName==='INPUT'))return;refresh(true)},API.pollMs);
 })();
 </script>
 <script>
