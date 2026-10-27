@@ -1,5 +1,5 @@
 /* ありが飴 Service Worker：アプリ本体をキャッシュして、すばやく・オフラインでも開けるように */
-var VERSION='arigaame-bb64e6767a';
+var VERSION='arigaame-c506a65e32';
 var SHELL=['./','./index.html','./config.js','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./icons/favicon-32.png'];
 self.addEventListener('install',function(e){

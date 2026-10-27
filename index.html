@@ -137,6 +137,23 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 .fields .w{grid-column:1/-1}
 .err{color:var(--pink-d);font-size:12px;font-weight:800;min-height:14px;margin:6px 0 0;text-align:center}
 
+/* 実物の袋（📷で入れた飴）：白フチのステッカー風 */
+.pk{position:relative;display:grid;place-items:center;flex:none}
+.pk>img{display:none}
+.pk.has>img{display:block;background:#fff;border:3px solid #fff;border-radius:12px;box-shadow:0 3px 8px rgba(90,74,94,.22);transform:rotate(var(--tilt,-4deg));object-fit:cover}
+.pk.has>svg{display:none}
+.pk .badge{display:none}
+.pk.has .badge{display:block;position:absolute;right:-8px;bottom:-6px;width:30px;height:30px;overflow:visible;filter:drop-shadow(0 2px 2px rgba(90,74,94,.2))}
+.shelf .it .pk.has>img{width:42px;height:42px;border-width:2px;border-radius:10px}
+.ch .pk{width:84px;height:92px}
+.ch .pk.has>img{max-width:84px;max-height:92px;object-fit:contain;border-width:4px;border-radius:14px}
+.feed li .pk.has>img{width:28px;height:28px;border-width:2px;border-radius:7px;box-shadow:0 1px 3px rgba(90,74,94,.25)}
+.pv .pk.has>img{max-width:96px;max-height:96px;object-fit:contain;border-width:4px;border-radius:14px;animation:bob 2.4s ease-in-out infinite}
+.pv .pk .badge{animation:none}
+.pv .rm{position:absolute;left:-10px;top:-8px;width:26px;height:26px;border-radius:50%;background:#fff;color:var(--soft);font-size:14px;font-weight:800;box-shadow:0 2px 6px rgba(90,74,94,.2);display:none;z-index:2}
+.pv.photo .rm{display:grid;place-items:center}
+.pv.reuse .pk.has>img{opacity:.92}
+
 /* history sheet */
 .feed{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .feed li{display:flex;gap:8px;align-items:center;font-size:12.5px;font-weight:700}
@@ -262,7 +279,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
   <button type="button" class="x" data-act="close" aria-label="とじる">×</button>
   <div class="pvrow">
     <label class="cam" id="cam" aria-label="袋を撮って自動入力">📷<span class="sp">✨</span><input type="file" id="camFile" accept="image/*" capture="environment" aria-label="袋の写真"></label>
-    <div class="pv" id="pv"><svg id="pvArt" viewBox="-1.6 -1.6 3.2 3.2"></svg></div>
+    <div class="pv" id="pv"><svg id="pvArt" viewBox="-1.6 -1.6 3.2 3.2"></svg><span id="pvPkg"></span><button type="button" class="rm" id="pvRm" aria-label="写真をやめる">✕</button></div>
   </div>
   <p class="hitag" id="hitag"></p>
   <div class="pick" id="shapePick"></div>
@@ -279,6 +296,8 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 <div class="toast" id="toast" role="status"></div>
 
 <script>
+/* 飴の名前の正規化：全角半角・カタカナ/ひらがな・大文字小文字・空白や記号の違いを無視（同じ飴の袋を使い回すため。サーバーと同じ規則） */
+function normName(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g,function(c){return String.fromCharCode(c.charCodeAt(0)-0x60)}).replace(/[\s\u3000・･\-‐ー－_.,、。!！?？'"「」()（）\[\]【】~〜]/g,'')}
 /* ===== データ保存：このブラウザの localStorage（スタンドアロン版） ===== */
 var API=(function(){
   var KEY='arigaame-data-v1', mem=null;
@@ -312,7 +331,11 @@ var API=(function(){
   function ok(d){save(d);return Promise.resolve(clone(d))}
   return {
     getData:function(){return Promise.resolve(clone(load()))},
-    addCandy:function(c){var d=load();d.candies.push({id:uid('c'),createdAt:new Date().toISOString(),giver:c.giver,name:c.name,emoji:c.emoji,color:c.color,qty:c.qty,eaten:0,message:c.message||''});return ok(d)},
+    images:true, /* 袋のサムネイルはこの端末に data URL で保存（同じ名前の飴は使い回し） */
+    addCandy:function(c){var d=load(),img=/^data:image\/(webp|jpeg);base64,/.test(c.image||'')&&c.image.length<70000?c.image:null;
+      if(!img&&typeof normName==='function'){var n=normName(c.name);if(n)d.candies.forEach(function(x){if(x.img&&normName(x.name)===n)img=x.img})}
+      var nc={id:uid('c'),createdAt:new Date().toISOString(),giver:c.giver,name:c.name,emoji:c.emoji,color:c.color,qty:c.qty,eaten:0,message:c.message||''};
+      if(img)nc.img=img; d.candies.push(nc);return ok(d)},
     eat:function(id){var d=load(),c=find(d,id);if(!c)return Promise.reject(new Error('その飴が見つかりません'));
       if(c.qty!=null&&c.eaten>=c.qty)return Promise.reject(new Error('もうなくなっちゃいました…'));c.eaten=(c.eaten||0)+1;return ok(d)},
     thank:function(id,t){var d=load();if(!find(d,id))return Promise.reject(new Error('その飴が見つかりません'));
@@ -337,7 +360,7 @@ var Passcode=(function(){
       set(v.trim()); return run(fn,tries+1);
     });
   }
-  return {run:run};
+  return {run:run,get:get};
 })();
 /* ===== データ保存：共有 API（PWA版）。config.js の API_URL が空ならデモモード =====
  *  - Cloudflare Worker（おすすめ）… https://arigaame-api.xxx.workers.dev
@@ -387,7 +410,12 @@ var Passcode=(function(){
     eat:function(id){return go('eat',[id])},
     thank:function(id,t){return go('thank',[id,t])}
   };
-  if(!GAS) API.recognize=recognize;
+  if(!GAS){
+    API.recognize=recognize;
+    API.images=true;
+    /* 袋のサムネイル：<img> はヘッダーを付けられないので合言葉はクエリで。id は不変なので端末に長くキャッシュされる */
+    API.imgUrl=function(id){return /^i[a-z0-9]{8,40}$/.test(id)?base+'/api/img/'+id+'?p='+encodeURIComponent(Passcode.get()):''};
+  }
 })();
 
 </script>
@@ -422,6 +450,11 @@ function rgb(h){h=h.replace('#','');return[0,2,4].map(function(i){return parseIn
 function mix(h,t,a){var x=rgb(h),y=rgb(t);return 'rgb('+x.map(function(v,i){return Math.round(v+(y[i]-v)*a)}).join(',')+')'}
 function shapeOf(c){return SHAPES.indexOf(c.emoji)>=0?c.emoji:SHAPES[hash(String(c.id||c.name))%SHAPES.length]}
 function colorOf(c){return /^#[0-9a-f]{6}$/i.test(c.color||'')?c.color:COLORS[hash(String(c.id))%COLORS.length]}
+/* 実物の袋の写真（あれば）。なければ・読めなければイラスト */
+function imgSrc(c){var i=c&&c.img;if(!i)return '';if(/^data:image\/(webp|jpeg|png);base64,/.test(i))return i;return API.imgUrl?API.imgUrl(i):''}
+function tilt(c){return ((hash(String(c.id||c.name||''))%11)-5)+'deg'}
+function pkg(c,inner,badge){var s=imgSrc(c);
+  return '<span class="pk'+(s?' has':'')+'" style="--tilt:'+tilt(c)+'">'+inner+(s?'<img src="'+esc(s)+'" alt="" decoding="async" onerror="this.parentNode.classList.remove(\'has\')">'+(badge?'<svg class="badge" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+art(shapeOf(c),colorOf(c))+'</svg>':''):'')+'</span>'}
 
 /* ---------- candy illustrations (unit size, r≈1) ---------- */
 var STAR=(function(){var p=[];for(var i=0;i<10;i++){var a=-Math.PI/2+i*Math.PI/5,r=i%2?.5:1;p.push((Math.cos(a)*r).toFixed(3)+','+(Math.sin(a)*r).toFixed(3))}return 'M'+p.join('L')+'Z'})();
@@ -532,7 +565,7 @@ function render(){
   $('chips').innerHTML=chips;
   var list=C.slice().sort(function(a,b){var oa=remaining(a)===0?1:0,ob=remaining(b)===0?1:0;return oa-ob||String(b.createdAt).localeCompare(String(a.createdAt))});
   $('shelf').innerHTML=list.map(function(c){var r=remaining(c);
-    return '<button type="button" class="it'+(r===0?' out':'')+'" data-act="open" data-id="'+esc(c.id)+'" aria-label="'+esc(c.name)+'">'+svgArt(shapeOf(c),colorOf(c))+'<i>'+(r==null?'∞':r)+'</i></button>'}).join('');
+    return '<button type="button" class="it'+(r===0?' out':'')+'" data-act="open" data-id="'+esc(c.id)+'" aria-label="'+esc(c.name)+'">'+pkg(c,svgArt(shapeOf(c),colorOf(c)))+'<i>'+(r==null?'∞':r)+'</i></button>'}).join('');
   renderJar();
   if(sheet==='candy')renderCandySheet();
   if(sheet==='hist')renderHist();
@@ -571,7 +604,7 @@ function renderCandySheet(){
   var msgs=ts.filter(function(t){return t.message}).sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt))}).slice(0,3);
   var el=$('candySheet'), keep=el.querySelector('.tform input[name=message]'), kv=keep?keep.value:'';
   el.innerHTML='<button type="button" class="x" data-act="close" aria-label="とじる">×</button>'+
-    '<div class="ch"><svg class="art" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+art(shapeOf(c),colorOf(c))+'</svg>'+
+    '<div class="ch">'+pkg(c,'<svg class="art" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+art(shapeOf(c),colorOf(c))+'</svg>',true)+
     '<div><h2>'+esc(c.name)+'</h2><p class="by">🎁 '+who(c.giver)+(c.sample?' ・ サンプル':'')+'</p></div>'+
     '<span class="left">'+(r==null?'∞':'× '+r)+'</span></div>'+
     (c.message?'<p class="note">💬 '+esc(c.message)+'</p>':'')+
@@ -594,7 +627,7 @@ function renderHist(){
   $('histSheet').innerHTML='<button type="button" class="x" data-act="close" aria-label="とじる">×</button>'+
     '<div class="rank"><div><h3>🎁</h3>'+top(got,'💖')+'</div><div><h3>💌</h3>'+top(sent,'')+'</div></div>'+
     '<ul class="feed">'+ev.slice(0,14).map(function(e){var c=e.c||{name:'?',emoji:'drop',color:'#eeeeee'};
-      return '<li>'+svgArt(shapeOf(c),colorOf(c))+'<span>'+(e.t?(e.t.reaction||'💌')+' '+who(e.t.from)+' → '+who(c.giver)+(e.t.message?'「'+esc(e.t.message)+'」':''):'🎁 '+who(c.giver)+'「'+esc(c.name)+'」')+'</span><time>'+ago(e.at)+'</time></li>'}).join('')+'</ul>'+
+      return '<li>'+pkg(c,svgArt(shapeOf(c),colorOf(c)))+'<span>'+(e.t?(e.t.reaction||'💌')+' '+who(e.t.from)+' → '+who(c.giver)+(e.t.message?'「'+esc(e.t.message)+'」':''):'🎁 '+who(c.giver)+'「'+esc(c.name)+'」')+'</span><time>'+ago(e.at)+'</time></li>'}).join('')+'</ul>'+
     (API.resetAll?'<div class="mini">'+(API.clearSamples?'<button type="button" data-act="clearSamples">サンプル ✕</button>':'')+'<button type="button" data-act="resetAll">リセット</button></div>':'');
 }
 
@@ -664,7 +697,23 @@ function drawPickers(){
   var col=pick('col')||COLORS[0], sh=pick('shape')||'drop';
   $('shapePick').innerHTML=SHAPES.map(function(s){return '<input type="radio" name="shape" id="sh-'+s+'" value="'+s+'"'+(s===sh?' checked':'')+'><label for="sh-'+s+'" title="'+SHAPE_NAMES[s]+'" aria-label="'+SHAPE_NAMES[s]+'">'+svgArt(s,col)+'</label>'}).join('');
   $('pvArt').innerHTML=art(sh,col);
+  drawPkg();
 }
+/* 追加シートの袋プレビュー：📷の写真 > 同じ名前の飴の袋（使い回し） > イラスト */
+var thumb=null;
+function reuseOf(name){var n=normName(name),hit=null;if(!n)return null;
+  state.candies.forEach(function(c){if(c.img&&normName(c.name)===n&&(!hit||String(c.createdAt)>String(hit.createdAt)))hit=c});return hit}
+function reuseImg(name){var h=reuseOf(name);return h&&h.img}
+function drawPkg(){
+  var pv=$('pv'), img=thumb||reuseImg($('fName').value), c={id:'pv',img:img,emoji:pick('shape')||'drop',color:pick('col')||COLORS[0]};
+  pv.classList.toggle('photo',!!thumb);pv.classList.toggle('reuse',!thumb&&!!img);
+  var has=!!(img&&imgSrc(c));
+  $('pvPkg').innerHTML=has?pkg(c,'',true):'';$('pvArt').style.display=has?'none':'';
+}
+var lastReuse=null;
+$('fName').addEventListener('input',function(){if(thumb)return;var h=reuseOf(this.value);
+  if(h&&h.id!==lastReuse){setPick('shape',shapeOf(h));setPick('col',colorOf(h));lastReuse=h.id;drawPickers()}else{if(!h)lastReuse=null;drawPkg()}});
+$('pvRm').addEventListener('click',function(){thumb=null;drawPkg()});
 $('colorPick').innerHTML=COLORS.map(function(c,i){return '<input type="radio" name="col" id="co'+i+'" value="'+c+'"'+(i?'':' checked')+'><label for="co'+i+'" style="background:'+c+'" aria-label="色'+(i+1)+'"></label>'}).join('');
 drawPickers();
 $('fabArt').innerHTML=art('wrap','#fff3f7');
@@ -674,17 +723,35 @@ function openAdd(){$('fGiver').value=$('fGiver').value||me();$('addErr').textCon
 /* 📷 袋の写真 → どの飴か自動入力（写真は縮小して送るだけ。どこにも保存しません） */
 var scanning=false;
 if(API.recognize) $('cam').classList.add('on');
-function shrink(file,max){
+function loadImg(file){
   return new Promise(function(ok,ng){
     var u=URL.createObjectURL(file), img=new Image();
-    img.onload=function(){
-      var s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight)), w=Math.round(img.naturalWidth*s), h=Math.round(img.naturalHeight*s);
-      var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);
-      URL.revokeObjectURL(u);
-      c.toBlob(function(b){b?ok(b):ng(new Error('写真が読めませんでした'))},'image/jpeg',.8);
-    };
+    img.onload=function(){URL.revokeObjectURL(u);ok(img)};
     img.onerror=function(){URL.revokeObjectURL(u);ng(new Error('写真が読めませんでした'))};
     img.src=u;
+  });
+}
+/* 画像の一部 r=[x0,y0,x1,y1]（0〜1）を長辺 max px に縮小 */
+function cropTo(img,r,max){
+  var W=img.naturalWidth,H=img.naturalHeight,sx=r[0]*W,sy=r[1]*H,sw=(r[2]-r[0])*W,sh=(r[3]-r[1])*H;
+  var s=Math.min(1,max/Math.max(sw,sh)),w=Math.max(1,Math.round(sw*s)),h=Math.max(1,Math.round(sh*s));
+  var c=document.createElement('canvas');c.width=w;c.height=h;var x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);
+  x.imageSmoothingQuality='high';x.drawImage(img,sx,sy,sw,sh,0,0,w,h);return c;
+}
+function toBlob(c,type,q){return new Promise(function(ok,ng){c.toBlob(function(b){b?ok(b):ng(new Error('写真が読めませんでした'))},type,q)})}
+function shrink(img,max){return toBlob(cropTo(img,[0,0,1,1],max),'image/jpeg',.8)}
+/* 袋のサムネイル（256px・WebP、だめなら JPEG・約 15〜30KB）。AI の枠が使えれば少し余白をつけて切り抜き、なければ中央 */
+function makeThumb(img,box){
+  var r=[.1,.1,.9,.9];
+  if(box&&box.length===4&&box[2]-box[0]>.08&&box[3]-box[1]>.08){
+    var mx=(box[2]-box[0])*.07,my=(box[3]-box[1])*.07;
+    r=[Math.max(0,box[0]-mx),Math.max(0,box[1]-my),Math.min(1,box[2]+mx),Math.min(1,box[3]+my)];
+  }
+  var c=cropTo(img,r,256);
+  function enc(q){return toBlob(c,'image/webp',q).then(function(b){return b.type==='image/webp'?b:toBlob(c,'image/jpeg',q)})}
+  return enc(.8).then(function(b){return b.size>40000?enc(.6):b}).then(function(b){
+    if(b.size>48000)return null;
+    return new Promise(function(ok){var fr=new FileReader();fr.onload=function(){ok(fr.result)};fr.onerror=function(){ok(null)};fr.readAsDataURL(b)});
   });
 }
 function setPick(name,val){var x=document.querySelector('input[name='+name+'][value="'+val+'"]');if(x)x.checked=true}
@@ -692,10 +759,13 @@ $('camFile').addEventListener('change',function(){
   var f=this.files&&this.files[0], inp=this; if(!f||scanning)return;
   scanning=true;$('cam').setAttribute('aria-busy','true');inp.disabled=true;$('addErr').textContent='';$('hitag').textContent='';
   var pv=$('pv');pv.classList.remove('got');pv.classList.add('scan');
-  shrink(f,768).then(API.recognize).then(function(d){
+  var im=null; thumb=null; drawPkg();
+  loadImg(f).then(function(i){im=i;return shrink(i,768)}).then(API.recognize).then(function(d){
     if(!d||!d.found){toast('🤔 わからなかった… 名前を入れてね');setTimeout(function(){$('fName').focus()},50);return}
     $('fName').value=d.label||d.name||'';
-    if(d.emoji)setPick('shape',d.emoji); if(d.color)setPick('col',d.color); drawPickers();
+    if(d.emoji)setPick('shape',d.emoji); if(d.color)setPick('col',d.color);
+    return (API.images?makeThumb(im,d.box).catch(function(){return null}):Promise.resolve(null)).then(function(t){thumb=t;drawPickers();return d});
+  }).then(function(d){ if(!d)return;
     $('hitag').textContent='✨ '+(d.maker?d.maker+' ':'')+(d.label||d.name);
     pv.classList.add('got');burst(pt(pv),['✨','🍬','📷'],10);
   }).catch(function(e){toast('😢 '+esc((e&&e.message)||'うまく読めませんでした'))}).then(function(){
@@ -708,8 +778,10 @@ $('addForm').addEventListener('submit',function(ev){
   if(!giver||!name){$('addErr').textContent='名前を入れてね';return}
   if(q&&(!(qty>0)||qty>999)){$('addErr').textContent='こすうは 1〜999';return}
   setMe(giver);busy=true;
-  API.addCandy({giver:giver,name:name,qty:qty,message:$('fMsg').value.trim(),emoji:pick('shape'),color:pick('col')}).then(function(d){
-    busy=false;closeSheet();$('fName').value='';$('fQty').value='';$('fMsg').value='';$('hitag').textContent='';
+  var nc={giver:giver,name:name,qty:qty,message:$('fMsg').value.trim(),emoji:pick('shape'),color:pick('col')};
+  if(thumb&&API.images)nc.image=thumb;
+  API.addCandy(nc).then(function(d){
+    busy=false;closeSheet();$('fName').value='';$('fQty').value='';$('fMsg').value='';$('hitag').textContent='';thumb=null;drawPkg();
     apply(d);setTimeout(function(){burst(mouth(),['🎉','✨','🍬'],14)},500);toast('🎉 ありがとう！');
   }).catch(function(e){busy=false;$('addErr').textContent=(e&&e.message)||'うまくいきませんでした'});
 });
