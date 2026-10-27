@@ -47,6 +47,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 #pieces.focus .pc{opacity:.4}
 #pieces.focus .pc.sel{opacity:1}
 #pieces.focus .pc.leaving{opacity:0}
+.bdg text{font-family:inherit}
 .ht{transition:transform 1.1s cubic-bezier(.3,1.2,.5,1)}
 .ht .tw{animation:tw 3.2s ease-in-out infinite}
 @keyframes tw{0%,100%{opacity:1}50%{opacity:.55}}
@@ -149,6 +150,25 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 .pick.col input:checked+label{border-color:var(--ink);box-shadow:inset 0 0 0 3px #fff}
 .fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
 .fields .w{grid-column:1/-1}
+/* 袋／つぶ の切りかえ（袋がデフォルト） */
+.kind{display:flex;gap:8px}
+.kind input{position:absolute;opacity:0;pointer-events:none}
+.kind label{flex:1;height:46px;border-radius:16px;display:flex;align-items:center;justify-content:center;gap:6px;background:#faf5f8;border:3px solid transparent;font-size:15px;font-weight:800;color:var(--soft);cursor:pointer;transition:transform .12s}
+.kind label svg{width:30px;height:30px;overflow:visible}
+.kind input:checked+label{border-color:var(--pink-d);background:#fff;color:var(--ink);transform:scale(1.03)}
+.kind input:focus-visible+label{outline:2px solid var(--ink)}
+.kind label:active{transform:scale(.95)}
+.bagrow{display:grid;grid-template-columns:1.25fr 1fr;gap:8px;align-items:center}
+.stp{display:flex;align-items:center;height:48px;border:2.5px solid var(--line);border-radius:14px;background:#fff;overflow:hidden}
+.stp button{flex:none;width:36px;height:100%;font-size:22px;font-weight:800;color:var(--pink-d);background:#fff6f9;touch-action:manipulation}
+.stp button:active{background:#ffe3ec}
+.stp input{flex:1;min-width:0;width:100%;border:0;text-align:center;font-size:18px;font-weight:800;color:var(--ink);background:none;outline:none;-moz-appearance:textfield}
+.stp input::-webkit-inner-spin-button,.stp input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.stp span{flex:none;font-size:11px;font-weight:800;color:var(--soft);padding-right:6px}
+.bagtot{grid-column:1/-1;text-align:center;font-size:12px;font-weight:800;color:var(--soft);margin-top:-2px}
+#addForm:not(.bag) #bagRow{display:none}
+#addForm.bag #fQty{display:none}
+#addForm.bag #fGiver{grid-column:1/-1}
 .err{color:var(--pink-d);font-size:12px;font-weight:800;min-height:14px;margin:6px 0 0;text-align:center}
 
 /* 実物の袋（📷で入れた飴）：白フチのステッカー風 */
@@ -255,6 +275,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
       <defs>
         <clipPath id="jarClip"><path d="M137,82 L137,108 C137,133 48,131 48,178 L48,437 Q48,483 95,483 L305,483 Q352,483 352,437 L352,178 C352,131 263,133 263,108 L263,82 Z"/></clipPath>
         <clipPath id="cc"><circle r="1"/></clipPath>
+        <clipPath id="bagclip"><path d="M-.88,-.68C-.96,-.2 -.96,.2 -.88,.68L.88,.68C.96,.2 .96,-.2 .88,-.68Z"/></clipPath>
         <linearGradient id="glassG" x1="0" x2="1"><stop offset="0" stop-color="#dff1ff" stop-opacity=".75"/><stop offset=".45" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#d9eefc" stop-opacity=".8"/></linearGradient>
         <linearGradient id="glowG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc4da" stop-opacity=".9"/><stop offset=".25" stop-color="#ffd3e2" stop-opacity=".7"/><stop offset="1" stop-color="#ffe6c4" stop-opacity=".8"/></linearGradient>
         <radialGradient id="glowdot"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".35" stop-color="#ffc1d6" stop-opacity=".6"/><stop offset="1" stop-color="#ffc1d6" stop-opacity="0"/></radialGradient>
@@ -316,7 +337,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 <div class="back" id="back" data-act="close"></div>
 <section class="bsheet" id="candySheet" aria-label="飴"></section>
 <section class="bsheet" id="histSheet" aria-label="ハッピーボード"></section>
-<form class="bsheet" id="addForm" autocomplete="off" aria-label="飴を入れる">
+<form class="bsheet bag" id="addForm" autocomplete="off" aria-label="飴を入れる">
   <button type="button" class="x" data-act="close" aria-label="とじる">×</button>
   <div class="pvrow">
     <label class="cam" id="cam" aria-label="袋を撮って自動入力">📷<span class="sp">✨</span><input type="file" id="camFile" accept="image/*" capture="environment" aria-label="袋の写真"></label>
@@ -326,8 +347,17 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
   <div class="pick" id="shapePick"></div>
   <div class="pick col" id="colorPick"></div>
   <div class="fields">
+    <div class="kind w" id="kindPick" role="radiogroup" aria-label="入れかた">
+      <input type="radio" name="kind" id="kd-bag" value="bag" checked><label for="kd-bag"><svg id="kdBagArt" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true"></svg>袋</label>
+      <input type="radio" name="kind" id="kd-piece" value="piece"><label for="kd-piece"><svg id="kdPcArt" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true"></svg>つぶ</label>
+    </div>
     <input class="inp w" id="fName" maxlength="40" placeholder="🍬 飴の名前" required aria-label="飴の名前">
     <div class="sugg" id="sugg" aria-label="袋のおすすめ"></div>
+    <div class="bagrow w" id="bagRow">
+      <div class="stp"><button type="button" data-stp="fPer" data-d="-1" aria-label="1袋のこすうをへらす">−</button><input id="fPer" type="number" min="1" max="200" value="10" inputmode="numeric" aria-label="1袋のこすう"><button type="button" data-stp="fPer" data-d="1" aria-label="1袋のこすうをふやす">+</button><span>こ/袋</span></div>
+      <div class="stp"><button type="button" data-stp="fBags" data-d="-1" aria-label="袋の数をへらす">−</button><input id="fBags" type="number" min="1" max="20" value="1" inputmode="numeric" aria-label="袋の数"><button type="button" data-stp="fBags" data-d="1" aria-label="袋の数をふやす">+</button><span>袋</span></div>
+      <p class="bagtot" id="bagTot"></p>
+    </div>
     <input class="inp" id="fGiver" maxlength="20" placeholder="🙂 あなた" required aria-label="あなたの名前">
     <input class="inp" id="fQty" type="number" min="1" max="999" inputmode="numeric" placeholder="× こすう" aria-label="こすう（任意）">
     <input class="inp w" id="fMsg" maxlength="60" placeholder="💬 ひとこと（なくてもOK）" aria-label="ひとこと">
@@ -373,10 +403,12 @@ var API=(function(){
   function ok(d){save(d);return Promise.resolve(clone(d))}
   return {
     getData:function(){return Promise.resolve(clone(load()))},
+    bags:true,   /* 袋で入れる（1袋のこすうも記録） */
     images:true, /* 袋のサムネイルはこの端末に data URL で保存（同じ名前の飴は使い回し） */
     addCandy:function(c){var d=load(),img=/^data:image\/(webp|jpeg);base64,/.test(c.image||'')&&c.image.length<70000?c.image:null;
       if(!img&&!c.noImg&&typeof normName==='function'){var n=normName(c.name);if(n)d.candies.forEach(function(x){if(x.img&&normName(x.name)===n)img=x.img})}
       var nc={id:uid('c'),createdAt:new Date().toISOString(),giver:c.giver,name:c.name,emoji:c.emoji,color:c.color,qty:c.qty,eaten:0,message:c.message||''};
+      if(c.kind==='bag'){nc.kind='bag';nc.perBag=c.perBag;nc.bags=c.bags||1;nc.qty=nc.perBag*nc.bags}
       if(img)nc.img=img; d.candies.push(nc);return ok(d)},
     eat:function(id){var d=load(),c=find(d,id);if(!c)return Promise.reject(new Error('その飴が見つかりません'));
       if(c.qty!=null&&c.eaten>=c.qty)return Promise.reject(new Error('もうなくなっちゃいました…'));c.eaten=(c.eaten||0)+1;return ok(d)},
@@ -455,6 +487,7 @@ var Passcode=(function(){
   if(!GAS){
     API.recognize=recognize;
     API.images=true;
+    API.bags=true; /* 袋で入れる（1袋のこすう・袋の数を記録。D1 の kind/per_bag/bags） */
     /* 瓶をまっさらに（合言葉＋確認の文字が必須） */
     API.resetAll=function(){return Passcode.run(function(p){
       return fetch(base+'/api/reset',{method:'POST',headers:{'X-Passcode':encodeURIComponent(p||''),'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({confirm:'reset'})}).then(unwrap,netErr);
@@ -511,7 +544,8 @@ function jarWall(b){
   else if(b.y>J.floor-r){b.y=J.floor-r;contact(b,0,-1)}
   var top=TOPY+r*.3;if(b.y<top){b.y=top;contact(b,0,1)}
 }
-function hitSnd(b,v,loud){var t=performance.now();if(loud&&v>SND_V&&t-(b.snd||0)>80&&t-sndAll>45){b.snd=sndAll=t;clink(Math.min(1,.2+v/1600))}}
+/* 当たった音：1回の衝突で1回だけ。袋が関わるときは低めの「ポスッ」 */
+function hitSnd(b,v,loud,o){var t=performance.now();if(loud&&v>SND_V&&t-(b.snd||0)>80&&t-sndAll>45){b.snd=sndAll=t;if(o)o.snd=t;clink(Math.min(1,.2+v/1600),b.bag||(o&&o.bag))}}
 /* 1ステップ進めて、いちばん大きく動いた量を返す */
 function physStep(h,loud){
   var n=LIST.length,i,j,a,b,it,mx=0;
@@ -526,7 +560,7 @@ function physStep(h,loud){
         a.x-=nx*pen*wa/s;a.y-=ny*pen*wa/s;b.x+=nx*pen*wb/s;b.y+=ny*pen*wb/s;
         if(it===0){
           var vn=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny; /* 近づく速さ */
-          if(vn>0){hitSnd(wa?a:b,vn,loud);if(wa&&wb)hitSnd(b,vn,loud)}
+          if(vn>0)hitSnd(wa?a:b,vn,loud,wa?b:a)
           var tx=-ny,ty=nx,rel=((b.x-b.px)-(a.x-a.px))*tx+((b.y-b.py)-(a.y-a.py))*ty,c=rel*.3/s;
           a.x+=tx*c*wa;a.y+=ty*c*wa;b.x-=tx*c*wb;b.y-=ty*c*wb;
           if(ny<-.3)b.cn=b.cn||2; if(ny>.3)a.cn=a.cn||2; /* 上に乗っている */
@@ -616,6 +650,22 @@ function art(shape,c){
   }
 }
 function svgArt(shape,c){return '<svg viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+art(shape,c)+'</svg>'}
+/* 袋（ピロー包装）：上下のギザギザ＋まんなかの窓に飴。写真があれば袋の形に切り抜いて貼る */
+var BAGP='M-.88,-.68C-.96,-.2 -.96,.2 -.88,.68L.88,.68C.96,.2 .96,-.2 .88,-.68Z';
+function bagArt(shape,c,src){
+  var d=mix(c,'#5a4a5e',.3), l=mix(c,'#ffffff',.55), sw=' stroke="'+d+'" stroke-width=".06"', z='';
+  for(var i=0;i<9;i++){var x=-.84+i*.21;z+='M'+x.toFixed(2)+',-.86v.16M'+x.toFixed(2)+',.7v.16'}
+  return '<rect x="-.95" y="-.88" width="1.9" height=".24" rx=".06" fill="'+l+'"'+sw+'/><rect x="-.95" y=".64" width="1.9" height=".24" rx=".06" fill="'+l+'"'+sw+'/><path d="'+z+'" stroke="'+d+'" stroke-width=".04" opacity=".45"/>'+
+    '<path d="'+BAGP+'" fill="'+c+'"/>'+
+    (src?'<image href="'+esc(src)+'" x="-.92" y="-.7" width="1.84" height="1.4" preserveAspectRatio="xMidYMid slice" clip-path="url(#bagclip)"/>':
+      '<ellipse rx=".52" ry=".44" fill="#fff" opacity=".88"/><g transform="scale(.3)">'+art(shape,c)+'</g>')+
+    '<path d="'+BAGP+'" fill="url(#shade)" opacity=".7"/><path d="'+BAGP+'" fill="none"'+sw+'/><path d="M-.7,-.5Q-.77,0 -.7,.42" stroke="#fff" stroke-width=".09" fill="none" opacity=".65" stroke-linecap="round"/>';
+}
+function isBag(c){return !!(c&&c.kind==='bag')}
+/* 「1袋(20個)」 */
+function bagTxt(c){return isBag(c)&&c.perBag?(c.bags||1)+'袋('+c.perBag+'個)':''}
+function cArt(c){return isBag(c)?bagArt(shapeOf(c),colorOf(c)):art(shapeOf(c),colorOf(c))}
+function cSvg(c,cls){return '<svg'+(cls?' class="'+cls+'"':'')+' viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+cArt(c)+'</svg>'}
 
 /* ---------- jar: piling candies ---------- */
 function floorY(x,r){
@@ -626,10 +676,14 @@ function floorY(x,r){
 }
 function buildPieces(){
   var items=state.candies.filter(function(c){return remaining(c)!==0});
-  var want=items.map(function(c){var r=remaining(c);return r==null?UNL:Math.min(r,PER)});
+  var want=items.map(function(c){var r=remaining(c);return isBag(c)?0:r==null?UNL:Math.min(r,PER)});
   var tot=want.reduce(function(a,b){return a+b},0), sc=tot>CAP?CAP/tot:1, out=[];
   items.forEach(function(c,i){
-    var n=Math.max(1,Math.round(want[i]*sc)), t=Date.parse(c.createdAt)||0, sh=shapeOf(c), col=colorOf(c);
+    var t=Date.parse(c.createdAt)||0, sh=shapeOf(c), col=colorOf(c);
+    if(isBag(c)){ /* 袋はまるごと1つ（大きめ）＋のこりのこすうバッジ。つぶはこぼさない（シンプル・軽い） */
+      var bk=c.id+'#bag', BR=rng(hash(bk));
+      out.push({key:bk,id:c.id,shape:sh,color:col,bag:true,n:remaining(c),img:imgSrc(c),r:34+BR()*3,rot:BR()*16-8,sort:t+BR()*7*86400e3});return}
+    var n=Math.max(1,Math.round(want[i]*sc));
     for(var k=0;k<n;k++){
       var key=c.id+'#'+k, R=rng(hash(key));
       var rot=sh==='wrap'?R()*60-30:sh==='swirl'?R()*90-45:sh==='heart'?R()*50-25:R()*360;
@@ -650,15 +704,17 @@ function buildPieces(){
   });
   return out;
 }
+function setBadge(el,n){var t=el.querySelector('.bdg text');if(!t)return;var s=n==null?'∞':String(n);if(t.textContent!==s){t.textContent=s;t.setAttribute('font-size',s.length>2?'.3':'.4');t.setAttribute('y',s.length>2?'.11':'.14')}}
 function glowY(n){return J.floor-300*(1-Math.exp(-n/26))}
 function renderJar(){
   var ps=buildPieces(), layer=$('pieces'), seen={}, settle=false, drops=[], gone=false;
   ps.forEach(function(p){
-    seen[p.key]=1; if(BODIES[p.key])return;
-    var el=document.createElementNS(NS,'g');el.setAttribute('class','pc');el.setAttribute('data-act','open');el.setAttribute('data-id',p.id);el.setAttribute('data-k',p.key);
-    el.innerHTML='<g transform="rotate('+p.rot.toFixed(0)+') scale('+p.r.toFixed(2)+')">'+art(p.shape,p.color)+'</g>';
+    seen[p.key]=1; if(BODIES[p.key]){if(p.bag)setBadge(BODIES[p.key].el,p.n);return}
+    var el=document.createElementNS(NS,'g');el.setAttribute('class','pc'+(p.bag?' bagpc':''));el.setAttribute('data-act','open');el.setAttribute('data-id',p.id);el.setAttribute('data-k',p.key);
+    el.innerHTML='<g transform="rotate('+p.rot.toFixed(0)+') scale('+p.r.toFixed(2)+')">'+(p.bag?bagArt(p.shape,p.color,p.img)+'<g class="bdg" transform="translate(.66,-.62)"><circle r=".36" fill="#fff" stroke="#f0638f" stroke-width=".08"/><text y=".14" text-anchor="middle" font-size=".4" font-weight="800" fill="#f0638f"></text></g>':art(p.shape,p.color))+'</g>';
+    if(p.bag)setBadge(el,p.n);
     pieceEls[p.key]=el;
-    var b={key:p.key,id:p.id,r:p.r,shape:p.shape,el:el,x:p.x,y:p.y,vx:0,vy:0,a:0}, sp=POS[p.key], R=rng(hash(p.key+'d'));
+    var b={key:p.key,id:p.id,r:p.r,shape:p.shape,bag:!!p.bag,el:el,x:p.x,y:p.y,vx:0,vy:0,a:0}, sp=POS[p.key], R=rng(hash(p.key+'d'));
     if(sp){b.x=sp[0];b.y=sp[1];b.a=sp[2]||0;var cl=clampPos(b.x,b.y,colR(b));b.x=cl.x;b.y=cl.y}
     else if(!firstJar){
       b.x=J.mx+(R()-.5)*150;b.y=TOPY+colR(b)+R()*10;b.vx=(R()-.5)*160;b.vy=120;
@@ -711,7 +767,7 @@ function render(){
   $('chips').innerHTML=chips;
   var list=C.slice().sort(function(a,b){var oa=remaining(a)===0?1:0,ob=remaining(b)===0?1:0;return oa-ob||String(b.createdAt).localeCompare(String(a.createdAt))});
   $('shelf').innerHTML=list.map(function(c){var r=remaining(c);
-    return '<button type="button" class="it'+(r===0?' out':'')+'" data-act="open" data-id="'+esc(c.id)+'" aria-label="'+esc(c.name)+'">'+pkg(c,svgArt(shapeOf(c),colorOf(c)))+'<i>'+(r==null?'∞':r)+'</i></button>'}).join('');
+    return '<button type="button" class="it'+(r===0?' out':'')+'" data-act="open" data-id="'+esc(c.id)+'" aria-label="'+esc(c.name)+'">'+pkg(c,cSvg(c))+'<i>'+(r==null?'∞':r)+'</i></button>'}).join('');
   renderJar();
   if(sheet==='candy')renderCandySheet();
   if(sheet==='hist')renderHist();
@@ -750,8 +806,8 @@ function renderCandySheet(){
   var msgs=ts.filter(function(t){return t.message}).sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt))}).slice(0,3);
   var el=$('candySheet'), keep=el.querySelector('.tform input[name=message]'), kv=keep?keep.value:'';
   el.innerHTML='<button type="button" class="x" data-act="close" aria-label="とじる">×</button>'+
-    '<div class="ch">'+pkg(c,'<svg class="art" viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true">'+art(shapeOf(c),colorOf(c))+'</svg>',true)+
-    '<div><h2>'+esc(c.name)+'</h2><p class="by">🎁 '+who(c.giver)+(c.sample?' ・ サンプル':'')+'</p></div>'+
+    '<div class="ch">'+pkg(c,cSvg(c,'art'),true)+
+    '<div><h2>'+esc(c.name)+'</h2><p class="by">🎁 '+who(c.giver)+(isBag(c)?' ・ 🛍️ '+bagTxt(c):'')+(c.sample?' ・ サンプル':'')+'</p></div>'+
     '<span class="left">'+(r==null?'∞':'× '+r)+'</span></div>'+
     (c.message?'<p class="note">💬 '+esc(c.message)+'</p>':'')+
     '<button type="button" class="big" data-act="eat" data-id="'+esc(c.id)+'"'+(out?' disabled':'')+'>'+(out?'からっぽ 🫙':'🙌 いただきます')+'</button>'+
@@ -775,7 +831,7 @@ function renderHist(){
   $('histSheet').innerHTML='<button type="button" class="x" data-act="close" aria-label="とじる">×</button>'+
     '<div class="rank"><div><h3>🎁</h3>'+top(got,'💖')+'</div><div><h3>💌</h3>'+top(sent,'')+'</div></div>'+
     '<ul class="feed">'+ev.slice(0,14).map(function(e){var c=e.c||{name:'?',emoji:'drop',color:'#eeeeee'};
-      return '<li>'+pkg(c,svgArt(shapeOf(c),colorOf(c)))+'<span>'+(e.t?(e.t.reaction||'💌')+' '+who(e.t.from)+' → '+who(c.giver)+(e.t.message?'「'+esc(e.t.message)+'」':''):'🎁 '+who(c.giver)+'「'+esc(c.name)+'」')+'</span><time>'+ago(e.at)+'</time></li>'}).join('')+'</ul>'+
+      return '<li>'+pkg(c,cSvg(c))+'<span>'+(e.t?(e.t.reaction||'💌')+' '+who(e.t.from)+' → '+who(c.giver)+(e.t.message?'「'+esc(e.t.message)+'」':''):'🎁 '+who(c.giver)+'「'+esc(c.name)+'」'+(isBag(c)?' '+bagTxt(c):''))+'</span><time>'+ago(e.at)+'</time></li>'}).join('')+'</ul>'+
     (!API.resetAll?'':rstOpen?
       '<form class="rst" id="rstForm"><p>🫙 瓶をまっさらに？<br><small>飴・ありがとう・写真がぜんぶ消えます</small></p><input class="inp" name="w" autocomplete="off" placeholder="「リセット」と入れてね" aria-label="確認"><div><button type="button" data-act="resetNo">やめる</button><button type="submit" class="go" disabled>消す</button></div></form>':
       '<div class="mini">'+(API.clearSamples?'<button type="button" data-act="clearSamples">サンプル ✕</button>':'')+'<button type="button" data-act="resetAll">リセット</button></div>');
@@ -856,9 +912,24 @@ function pick(n){var x=document.querySelector('input[name='+n+']:checked');retur
 function drawPickers(){
   var col=pick('col')||COLORS[0], sh=pick('shape')||'drop';
   $('shapePick').innerHTML=SHAPES.map(function(s){return '<input type="radio" name="shape" id="sh-'+s+'" value="'+s+'"'+(s===sh?' checked':'')+'><label for="sh-'+s+'" title="'+SHAPE_NAMES[s]+'" aria-label="'+SHAPE_NAMES[s]+'">'+svgArt(s,col)+'</label>'}).join('');
-  $('pvArt').innerHTML=art(sh,col);
-  drawPkg();
+  var bag=kindNow()==='bag';
+  $('pvArt').innerHTML=bag?bagArt(sh,col):art(sh,col);
+  $('kdBagArt').innerHTML=bagArt(sh,col);$('kdPcArt').innerHTML=art(sh,col);
+  $('addForm').classList.toggle('bag',bag);
+  bagTotal();drawPkg();
 }
+/* 袋／つぶ：袋がデフォルト。袋は「1袋のこすう × 袋の数」 */
+function kindNow(){return API.bags&&pick('kind')!=='piece'?'bag':'piece'}
+function setKind(k){setPick('kind',k==='piece'?'piece':'bag');drawPickers()}
+function clampIn(id,lo,hi,dflt){var v=parseInt($(id).value,10);if(!(v>=lo))v=$(id).value===''?dflt:lo;if(v>hi)v=hi;return v}
+function bagTotal(){var per=parseInt($('fPer').value,10)||0,n=parseInt($('fBags').value,10)||0;$('bagTot').textContent=per>0&&n>0?'🍬 ぜんぶで '+(per*n)+'こ':''}
+if(!API.bags){$('kindPick').style.display='none';setPick('kind','piece')}
+$('addForm').addEventListener('click',function(ev){
+  var b=ev.target.closest('[data-stp]');if(!b)return;
+  var id=b.getAttribute('data-stp'),hi=id==='fPer'?200:20,v=clampIn(id,1,hi,id==='fPer'?10:1)+(+b.getAttribute('data-d'));
+  $(id).value=Math.max(1,Math.min(hi,v));bagTotal();
+});
+$('fPer').addEventListener('input',bagTotal);$('fBags').addEventListener('input',bagTotal);
 /* 追加シートの袋プレビュー：📷の写真 > 同じ名前の飴の袋（使い回し） > イラスト */
 var thumb=null, pickedImg=null, noImg=false;
 function reuseOf(name){var n=normName(name),hit=null;if(!n)return null;
@@ -923,7 +994,7 @@ $('sugg').addEventListener('click',function(ev){
 $('colorPick').innerHTML=COLORS.map(function(c,i){return '<input type="radio" name="col" id="co'+i+'" value="'+c+'"'+(i?'':' checked')+'><label for="co'+i+'" style="background:'+c+'" aria-label="色'+(i+1)+'"></label>'}).join('');
 drawPickers();
 $('fabArt').innerHTML=art('wrap','#fff3f7');
-$('addForm').addEventListener('change',function(e){if(e.target.name==='col'||e.target.name==='shape')drawPickers()});
+$('addForm').addEventListener('change',function(e){if(e.target.name==='col'||e.target.name==='shape'||e.target.name==='kind')drawPickers()});
 function openAdd(){$('fGiver').value=$('fGiver').value||me();$('addErr').textContent='';openSheet('add')}
 
 /* 📷 袋の写真 → どの飴か自動入力（写真は縮小して送るだけ。どこにも保存しません） */
@@ -970,9 +1041,11 @@ $('camFile').addEventListener('change',function(){
     if(!d||!d.found){toast('🤔 わからなかった… 名前を入れてね');setTimeout(function(){$('fName').focus()},50);return}
     $('fName').value=d.label||d.name||'';
     if(d.emoji)setPick('shape',d.emoji); if(d.color)setPick('col',d.color);
+    /* 袋のこすうが印刷されていれば入れておく（あとで直せる）。はっきり1つぶだけのときだけ「つぶ」に */
+    if(API.bags){if(d.kind==='piece'&&d.confidence>=.6)setPick('kind','piece');else{setPick('kind','bag');if(d.count>=1&&d.count<=200)$('fPer').value=d.count}}
     return (API.images?makeThumb(im,d.box).catch(function(){return null}):Promise.resolve(null)).then(function(t){thumb=t;drawPickers();return d});
   }).then(function(d){ if(!d)return;
-    $('hitag').textContent='✨ '+(d.maker?d.maker+' ':'')+(d.label||d.name);
+    $('hitag').textContent='✨ '+(d.maker?d.maker+' ':'')+(d.label||d.name)+(kindNow()==='bag'&&d.count?' 🛍️×'+d.count:'');
     pv.classList.add('got');burst(pt(pv),['✨','🍬','📷'],10);
   }).catch(function(e){toast('😢 '+esc((e&&e.message)||'うまく読めませんでした'))}).then(function(){
     scanning=false;pv.classList.remove('scan');$('cam').removeAttribute('aria-busy');inp.disabled=false;inp.value='';
@@ -982,14 +1055,21 @@ $('addForm').addEventListener('submit',function(ev){
   ev.preventDefault();if(busy)return;
   var giver=$('fGiver').value.trim(),name=$('fName').value.trim(),q=$('fQty').value.trim(),qty=q?parseInt(q,10):null;
   if(!giver||!name){$('addErr').textContent='名前を入れてね';return}
-  if(q&&(!(qty>0)||qty>999)){$('addErr').textContent='こすうは 1〜999';return}
+  var bag=kindNow()==='bag', per=parseInt($('fPer').value,10), nb=parseInt($('fBags').value,10);
+  if(bag){
+    if(!(per>=1&&per<=200)){$('addErr').textContent='1袋のこすうは 1〜200';return}
+    if(!(nb>=1&&nb<=20)){$('addErr').textContent='袋の数は 1〜20';return}
+    if(per*nb>999){$('addErr').textContent='ぜんぶで 999こまで';return}
+    qty=per*nb;
+  }else if(q&&(!(qty>0)||qty>999)){$('addErr').textContent='こすうは 1〜999';return}
   setMe(giver);busy=true;
   var nc={giver:giver,name:name,qty:qty,message:$('fMsg').value.trim(),emoji:pick('shape'),color:pick('col')};
+  if(bag){nc.kind='bag';nc.perBag=per;nc.bags=nb}
   if(thumb&&API.images)nc.image=thumb;
   else if(pickedImg&&API.images){if(/^data:/.test(pickedImg))nc.image=pickedImg;else nc.imgId=pickedImg}
   else if(noImg)nc.noImg=true;
   API.addCandy(nc).then(function(d){
-    busy=false;closeSheet();$('fName').value='';$('fQty').value='';$('fMsg').value='';$('hitag').textContent='';thumb=null;pickedImg=null;noImg=false;sugSel=null;sugItems=[];sugLoading=false;sugSeq++;paintSugg();drawPkg();
+    busy=false;closeSheet();$('fName').value='';$('fQty').value='';$('fMsg').value='';$('fPer').value=10;$('fBags').value=1;if(API.bags)setKind('bag');$('hitag').textContent='';thumb=null;pickedImg=null;noImg=false;sugSel=null;sugItems=[];sugLoading=false;sugSeq++;paintSugg();drawPkg();
     dropSnd=true;apply(d);setTimeout(function(){burst(mouth(),['🎉','✨','🍬'],14)},500);toast('🎉 ありがとう！');
   }).catch(function(e){busy=false;$('addErr').textContent=(e&&e.message)||'うまくいきませんでした'});
 });
@@ -1009,14 +1089,15 @@ function unlockAudio(){
 }
 ['pointerdown','touchend','click','keydown'].forEach(function(t){document.addEventListener(t,unlockAudio,{capture:true,passive:true})});
 /* v: 0〜1 の強さ（ぶつかる速さ）→ 音量と高さ。毎回すこし音程をずらす */
-function clink(v){
-  window.__clinks=(window.__clinks||0)+1;
+function clink(v,soft){
+  window.__clinks=(window.__clinks||0)+1;if(soft)window.__thuds=(window.__thuds||0)+1;
   if(muted||!actx||actx.state!=='running')return;
   try{
     v=Math.max(.15,Math.min(1,v||.5));
-    var t=actx.currentTime, f0=(2300+v*900)*(1+(Math.random()-.5)*.12), out=actx.createGain();
-    out.gain.value=.16*v;out.connect(actx.destination);
-    [[1,1,.22,'sine'],[2.76,.45,.12,'triangle'],[5.4,.22,.06,'sine']].forEach(function(h){
+    /* soft=袋：ガサッと低めの「ポスッ」 */
+    var t=actx.currentTime, f0=(soft?420+v*220:2300+v*900)*(1+(Math.random()-.5)*.12), out=actx.createGain();
+    out.gain.value=(soft?.22:.16)*v;out.connect(actx.destination);
+    (soft?[[1,1,.09,'triangle'],[2.3,.5,.05,'sine'],[4.1,.25,.03,'triangle']]:[[1,1,.22,'sine'],[2.76,.45,.12,'triangle'],[5.4,.22,.06,'sine']]).forEach(function(h){
       var o=actx.createOscillator(),g=actx.createGain();o.type=h[3];o.frequency.value=f0*h[0];
       g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(h[1],t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+h[2]*(.7+v*.6));
       o.connect(g);g.connect(out);o.start(t);o.stop(t+.4);

@@ -1,5 +1,5 @@
 /* ありがとドロップ Service Worker：アプリ本体をキャッシュして、すばやく・オフラインでも開けるように */
-var VERSION='arigaame-172ccbfc83';
+var VERSION='arigaame-880ea9b841';
 var SHELL=['./','./index.html','./config.js','./manifest.webmanifest',
   './icons/icon-192.png','./icons/icon-512.png','./icons/apple-touch-icon.png','./icons/favicon-32.png'];
 self.addEventListener('install',function(e){
