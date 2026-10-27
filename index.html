@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ありが飴 🍬</title>
+<title>ありがとドロップ 🍬</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap" rel="stylesheet">
@@ -23,8 +23,9 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 
 /* ---------- top bar ---------- */
 .top{position:relative;z-index:5;display:flex;align-items:center;gap:8px;padding:calc(10px + var(--st)) calc(14px + var(--sr)) 0 calc(16px + var(--sl));max-width:760px;margin:0 auto}
-.logo{font-weight:800;font-size:20px;letter-spacing:.04em;background:linear-gradient(90deg,#f0638f,#ff9a6b 45%,#38b994 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
-.tools{margin-left:auto;display:flex;gap:6px;align-items:center}
+.logo{white-space:nowrap;flex:0 0 auto;margin:0;font-weight:800;font-size:clamp(17px,5.3vw,20px);letter-spacing:.02em;background:linear-gradient(90deg,#f0638f,#ff9a6b 45%,#38b994 80%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.tools{margin-left:auto;display:flex;gap:6px;align-items:center;min-width:0}
+#chips{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;min-width:0}
 .chip{height:30px;padding:0 11px;border-radius:999px;background:#fff;font-size:11.5px;font-weight:800;color:var(--soft);box-shadow:0 2px 0 var(--line);display:inline-flex;align-items:center;gap:4px}
 .chip.sample{color:#7a5cf0;background:#f4efff}
 .ibtn.sm{width:30px;height:30px;font-size:14px;opacity:.75;box-shadow:0 2px 0 var(--line)}
@@ -224,7 +225,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="ありが飴">
+<meta name="apple-mobile-web-app-title" content="ありがと">
 <meta name="format-detection" content="telephone=no">
 <style>
 .install{display:inline-flex;align-items:center;gap:6px;margin:6px auto 0;background:#fff;border-radius:999px;padding:5px 6px 5px 12px;font-size:12px;font-weight:800;box-shadow:0 2px 0 var(--line)}
@@ -236,7 +237,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 </head>
 <body>
 <header class="top">
-  <h1 class="logo">ありが飴</h1>
+  <h1 class="logo">ありがとドロップ</h1>
   <div class="tools"><span id="chips"></span><button class="ibtn sm" type="button" id="sndBtn" data-act="snd" aria-label="おと">🔊</button><button class="ibtn" type="button" data-act="hist" aria-label="ハッピーボード">🏅</button></div>
 </header>
 <div id="hintSlot"></div>
@@ -389,7 +390,7 @@ var Passcode=(function(){
     return fn(get()).catch(function(e){
       if(!isPassErr(e)) throw e;
       if(tries>=3) throw new Error('合言葉がちがうようです');
-      var v=window.prompt(tries?'合言葉がちがうみたい…もう一度入れてね 🍬':'🍬 ありが飴の「合言葉」を入れてね（社内で共有されているもの）','');
+      var v=window.prompt(tries?'合言葉がちがうみたい…もう一度入れてね 🍬':'🍬 ありがとドロップの「合言葉」を入れてね（社内で共有されているもの）','');
       if(v==null) throw new Error('合言葉が必要です');
       set(v.trim()); return run(fn,tries+1);
     });
