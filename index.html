@@ -27,6 +27,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 .tools{margin-left:auto;display:flex;gap:6px;align-items:center}
 .chip{height:30px;padding:0 11px;border-radius:999px;background:#fff;font-size:11.5px;font-weight:800;color:var(--soft);box-shadow:0 2px 0 var(--line);display:inline-flex;align-items:center;gap:4px}
 .chip.sample{color:#7a5cf0;background:#f4efff}
+.ibtn.sm{width:30px;height:30px;font-size:14px;opacity:.75;box-shadow:0 2px 0 var(--line)}
 .ibtn{width:40px;height:40px;border-radius:50%;background:#fff;box-shadow:0 3px 0 var(--line);font-size:19px;display:grid;place-items:center}
 #hintSlot{display:flex;justify-content:center;position:relative;z-index:4}
 
@@ -37,6 +38,11 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 .pc{cursor:pointer;transition:transform .9s cubic-bezier(.34,1.35,.64,1),opacity .5s}
 .pc.leaving{opacity:0;transition:transform .55s cubic-bezier(.3,0,.4,1),opacity .35s .3s}
 .pc:hover>g{filter:brightness(1.06)}
+#jar *{pointer-events:none}
+#jar .pc,#jar .pc *{pointer-events:auto}
+.pc{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pc.drag{transition:none;cursor:grabbing}
+.pc.drag>g{filter:drop-shadow(0 6px 4px rgba(90,74,94,.28)) brightness(1.05)}
 #pieces.focus .pc{opacity:.4}
 #pieces.focus .pc.sel{opacity:1}
 #pieces.focus .pc.leaving{opacity:0}
@@ -186,6 +192,13 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 .rank p{margin:2px 0;font-size:12.5px;font-weight:800;display:flex;justify-content:space-between;gap:4px}
 .mini{display:flex;gap:8px;justify-content:center;margin-top:16px}
 .mini button{font-size:11.5px;font-weight:800;color:var(--soft);background:#f6f1f4;border-radius:999px;padding:7px 12px}
+.rst{margin:16px auto 0;max-width:300px;background:#fff4f7;border:2.5px dashed #ffc6d7;border-radius:18px;padding:12px;text-align:center}
+.rst p{font-size:13px;font-weight:800;margin:0 0 8px}
+.rst .inp{text-align:center;padding:8px 10px}
+.rst div{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.rst button{font-size:12.5px;font-weight:800;border-radius:999px;padding:8px 16px;background:#f6f1f4;color:var(--soft)}
+.rst button.go{background:var(--pink-d);color:#fff}
+.rst button.go:disabled{background:#f3d9e2;color:#fff;cursor:default}
 
 /* effects */
 .toast{position:fixed;left:50%;top:calc(12px + var(--st));transform:translate(-50%,-220%);visibility:hidden;z-index:50;background:#fff;border-radius:999px;padding:9px 18px;font-weight:800;font-size:14px;
@@ -224,7 +237,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 <body>
 <header class="top">
   <h1 class="logo">ありが飴</h1>
-  <div class="tools"><span id="chips"></span><button class="ibtn" type="button" data-act="hist" aria-label="ハッピーボード">🏅</button></div>
+  <div class="tools"><span id="chips"></span><button class="ibtn sm" type="button" id="sndBtn" data-act="snd" aria-label="おと">🔊</button><button class="ibtn" type="button" data-act="hist" aria-label="ハッピーボード">🏅</button></div>
 </header>
 <div id="hintSlot"></div>
 
@@ -434,6 +447,10 @@ var Passcode=(function(){
   if(!GAS){
     API.recognize=recognize;
     API.images=true;
+    /* 瓶をまっさらに（合言葉＋確認の文字が必須） */
+    API.resetAll=function(){return Passcode.run(function(p){
+      return fetch(base+'/api/reset',{method:'POST',headers:{'X-Passcode':encodeURIComponent(p||''),'Content-Type':'application/json'},cache:'no-store',body:JSON.stringify({confirm:'reset'})}).then(unwrap,netErr);
+    })};
     /* 袋のサムネイル：<img> はヘッダーを付けられないので合言葉はクエリで。id は不変なので端末に長くキャッシュされる */
     /* 名前 → 袋の候補（外部の商品データはサーバー経由。画像もサーバー経由で取得） */
     API.suggest=function(q){return Passcode.run(function(p){
@@ -459,6 +476,14 @@ var J={L:48,R:352,floor:482,cr:46,top:150,mx:200,my:56};
 var ME_KEY='arigaame-me';
 var state={candies:[],thanks:[]}, busy=false, sheet=null, openId=null, msgOpen=false, firstJar=true;
 var pieceEls={}, heartEls={};
+var drag=null, dropSnd=false; /* ドラッグ中の飴・自分で入れた飴の落下音 */
+var TOPY=182; /* 瓶の肩より下だけに置ける */
+function clampPos(x,y,r){
+  var hit=false, nx=Math.max(J.L+r,Math.min(J.R-r,x)); if(nx!==x)hit=true;
+  var fy=floorY(nx,r), ny=y; if(ny>fy){ny=fy;hit=true}
+  if(ny<TOPY+r*.3)ny=TOPY+r*.3;
+  return {x:nx,y:ny,hit:hit};
+}
 
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
@@ -539,21 +564,25 @@ function glowY(n){return J.floor-300*(1-Math.exp(-n/26))}
 function renderJar(){
   var ps=buildPieces(), layer=$('pieces'), seen={}, fresh=0;
   ps.forEach(function(p){
-    seen[p.key]=1;
+    seen[p.key]=1; var sp=POS[p.key]; if(sp){var cl=clampPos(sp[0],sp[1],p.r);p.x=cl.x;p.y=cl.y}
+    if(drag&&drag.moved&&drag.key===p.key){drag.el.__r=p.r;return}
     var tf='translate('+p.x.toFixed(1)+'px,'+p.y.toFixed(1)+'px)', el=pieceEls[p.key];
     if(!el){
-      el=document.createElementNS(NS,'g');el.setAttribute('class','pc');el.setAttribute('data-act','open');el.setAttribute('data-id',p.id);
+      el=document.createElementNS(NS,'g');el.setAttribute('class','pc');el.setAttribute('data-act','open');el.setAttribute('data-id',p.id);el.setAttribute('data-k',p.key);
       el.innerHTML='<g transform="rotate('+p.rot.toFixed(0)+') scale('+p.r.toFixed(2)+')">'+art(p.shape,p.color)+'</g>';
       pieceEls[p.key]=el;
       if(firstJar){el.style.transform=tf;layer.appendChild(el)}
       else{
         el.style.transition='none';el.style.transform='translate('+(J.mx-30+Math.random()*60).toFixed(0)+'px,'+(J.my-30)+'px)';
         layer.appendChild(el);el.getBoundingClientRect();
-        el.style.transition='';el.style.transitionDelay=(fresh++*70)+'ms';
+        el.style.transition='';var dl=fresh++*70;el.style.transitionDelay=dl+'ms';
+        if(dropSnd&&fresh<=8)setTimeout(function(){clink(.55+Math.random()*.3)},dl+430);
         (function(el,tf){requestAnimationFrame(function(){el.style.transform=tf;setTimeout(function(){el.style.transitionDelay=''},1200)})})(el,tf);
       }
     } else el.style.transform=tf;
+    el.__r=p.r;el.__x=p.x;el.__y=p.y;
   });
+  dropSnd=false;
   Object.keys(pieceEls).forEach(function(k){
     if(seen[k])return; var el=pieceEls[k]; delete pieceEls[k];
     el.classList.add('leaving');el.style.transform='translate('+J.mx+'px,-40px)';
@@ -642,7 +671,9 @@ function renderCandySheet(){
     (msgs.length?'<ul class="bubbles">'+msgs.map(function(t){return '<li><b>'+who(t.from)+'</b> '+esc(t.message)+'</li>'}).join('')+'</ul>':'');
   if(keep){var ni=el.querySelector('.tform input[name=message]');if(ni){ni.value=kv}}
 }
+var rstOpen=false;
 function renderHist(){
+  var of=$('rstForm'), kw=of?of.w.value:'';
   var ev=[];
   state.thanks.forEach(function(t){ev.push({t:t,c:candyById(t.candyId),at:t.createdAt})});
   state.candies.forEach(function(c){ev.push({c:c,at:c.createdAt})});
@@ -655,7 +686,10 @@ function renderHist(){
     '<div class="rank"><div><h3>🎁</h3>'+top(got,'💖')+'</div><div><h3>💌</h3>'+top(sent,'')+'</div></div>'+
     '<ul class="feed">'+ev.slice(0,14).map(function(e){var c=e.c||{name:'?',emoji:'drop',color:'#eeeeee'};
       return '<li>'+pkg(c,svgArt(shapeOf(c),colorOf(c)))+'<span>'+(e.t?(e.t.reaction||'💌')+' '+who(e.t.from)+' → '+who(c.giver)+(e.t.message?'「'+esc(e.t.message)+'」':''):'🎁 '+who(c.giver)+'「'+esc(c.name)+'」')+'</span><time>'+ago(e.at)+'</time></li>'}).join('')+'</ul>'+
-    (API.resetAll?'<div class="mini">'+(API.clearSamples?'<button type="button" data-act="clearSamples">サンプル ✕</button>':'')+'<button type="button" data-act="resetAll">リセット</button></div>':'');
+    (!API.resetAll?'':rstOpen?
+      '<form class="rst" id="rstForm"><p>🫙 瓶をまっさらに？<br><small>飴・ありがとう・写真がぜんぶ消えます</small></p><input class="inp" name="w" autocomplete="off" placeholder="「リセット」と入れてね" aria-label="確認"><div><button type="button" data-act="resetNo">やめる</button><button type="submit" class="go" disabled>消す</button></div></form>':
+      '<div class="mini">'+(API.clearSamples?'<button type="button" data-act="clearSamples">サンプル ✕</button>':'')+'<button type="button" data-act="resetAll">リセット</button></div>');
+  var f=$('rstForm');if(f){f.w.value=kw;f.querySelector('.go').disabled=kw.trim()!=='リセット'}
 }
 
 /* ---------- effects ---------- */
@@ -678,7 +712,7 @@ function flyTo(from,to,ch,cb){
 }
 
 /* ---------- actions ---------- */
-function apply(d){state=d||state;render()}
+function apply(d){state=d||state;if(d&&d.candies)prunePos();render()}
 function fail(e){busy=false;toast('😢 '+esc((e&&e.message)||'うまくいきませんでした'));refresh(true)}
 function refresh(quiet){return Promise.resolve(API.getData()).then(apply).catch(function(e){
   console.error(e);if(quiet)return;$('loading').style.display='none';
@@ -697,7 +731,7 @@ document.addEventListener('click',function(ev){
   if(act==='open'){openId=id;msgOpen=false;renderCandySheet();openSheet('candy')}
   else if(act==='close'){closeSheet()}
   else if(act==='add'){openAdd()}
-  else if(act==='hist'){renderHist();openSheet('hist')}
+  else if(act==='hist'){rstOpen=false;renderHist();openSheet('hist')}
   else if(act==='demo'){toast(API.banner)}
   else if(act==='msg'){msgOpen=!msgOpen;renderCandySheet();if(msgOpen){var i=$('candySheet').querySelector('.tform input');i&&i.focus()}}
   else if(act==='eat'){
@@ -710,7 +744,16 @@ document.addEventListener('click',function(ev){
   }
   else if(act==='react'){sendThanks(id,{from:me(),reaction:b.getAttribute('data-r'),message:''},b,b.getAttribute('data-r'))}
   else if(act==='clearSamples'){if(confirm('サンプルを消しますか？'))API.clearSamples().then(function(d){closeSheet();apply(d)})}
-  else if(act==='resetAll'){if(confirm('ぜんぶ消してまっさらにしますか？'))API.resetAll().then(function(d){closeSheet();apply(d)})}
+  else if(act==='resetAll'){rstOpen=true;renderHist();var f=$('rstForm');f&&f.scrollIntoView({block:'nearest'})}
+  else if(act==='resetNo'){rstOpen=false;renderHist()}
+  else if(act==='snd'){setMute(!muted);if(!muted)clink(.7)}
+});
+/* リセット：①「リセット」ボタン → ② 「リセット」と入れて「消す」の2段階 */
+document.addEventListener('input',function(ev){var f=ev.target.form;if(f&&f.id==='rstForm')f.querySelector('.go').disabled=f.w.value.trim()!=='リセット'});
+document.addEventListener('submit',function(ev){
+  var f=ev.target;if(f.id!=='rstForm')return;ev.preventDefault();
+  if(busy||f.w.value.trim()!=='リセット')return;busy=true;f.querySelector('.go').disabled=true;
+  API.resetAll().then(function(d){busy=false;rstOpen=false;closeSheet();apply(d);toast('🫙 まっさらになりました')}).catch(fail);
 });
 document.addEventListener('submit',function(ev){
   var f=ev.target;if(!f.classList.contains('tform'))return;ev.preventDefault();
@@ -857,10 +900,87 @@ $('addForm').addEventListener('submit',function(ev){
   else if(noImg)nc.noImg=true;
   API.addCandy(nc).then(function(d){
     busy=false;closeSheet();$('fName').value='';$('fQty').value='';$('fMsg').value='';$('hitag').textContent='';thumb=null;pickedImg=null;noImg=false;sugSel=null;sugItems=[];sugLoading=false;sugSeq++;paintSugg();drawPkg();
-    apply(d);setTimeout(function(){burst(mouth(),['🎉','✨','🍬'],14)},500);toast('🎉 ありがとう！');
+    dropSnd=true;apply(d);setTimeout(function(){burst(mouth(),['🎉','✨','🍬'],14)},500);toast('🎉 ありがとう！');
   }).catch(function(e){busy=false;$('addErr').textContent=(e&&e.message)||'うまくいきませんでした'});
 });
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeSheet()});
+
+/* ---------- 効果音：瓶に飴があたる「カチン」（Web Audio で合成・音声ファイルなし） ---------- */
+var SND_KEY='arigaame-mute', muted=false, actx=null;
+try{muted=localStorage.getItem(SND_KEY)==='1'}catch(e){}
+function setMute(m){muted=!!m;try{localStorage.setItem(SND_KEY,muted?'1':'0')}catch(e){}var b=$('sndBtn');if(b){b.textContent=muted?'🔇':'🔊';b.setAttribute('aria-pressed',muted?'true':'false')}}
+setMute(muted);
+function unlockAudio(){
+  try{
+    if(!actx){var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;actx=new AC()}
+    if(actx.state==='suspended')actx.resume();
+    var b=actx.createBuffer(1,1,22050),s=actx.createBufferSource();s.buffer=b;s.connect(actx.destination);s.start(0);
+  }catch(e){}
+}
+['pointerdown','touchend','click','keydown'].forEach(function(t){document.addEventListener(t,unlockAudio,{capture:true,passive:true})});
+/* v: 0〜1 の強さ（ぶつかる速さ）→ 音量と高さ。毎回すこし音程をずらす */
+function clink(v){
+  window.__clinks=(window.__clinks||0)+1;
+  if(muted||!actx||actx.state!=='running')return;
+  try{
+    v=Math.max(.15,Math.min(1,v||.5));
+    var t=actx.currentTime, f0=(2300+v*900)*(1+(Math.random()-.5)*.12), out=actx.createGain();
+    out.gain.value=.16*v;out.connect(actx.destination);
+    [[1,1,.22,'sine'],[2.76,.45,.12,'triangle'],[5.4,.22,.06,'sine']].forEach(function(h){
+      var o=actx.createOscillator(),g=actx.createGain();o.type=h[3];o.frequency.value=f0*h[0];
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(h[1],t+.003);g.gain.exponentialRampToValueAtTime(.0001,t+h[2]*(.7+v*.6));
+      o.connect(g);g.connect(out);o.start(t);o.stop(t+.4);
+    });
+    window.__clinksPlayed=(window.__clinksPlayed||0)+1;
+  }catch(e){}
+}
+
+/* ---------- 瓶の中の飴をドラッグで並べかえ（位置はこの端末にだけ保存） ---------- */
+var POS_KEY='arigaame-pos', POS={}, suppressClick=0;
+try{POS=JSON.parse(localStorage.getItem(POS_KEY))||{}}catch(e){POS={}}
+function savePos(){try{localStorage.setItem(POS_KEY,JSON.stringify(POS))}catch(e){}}
+function prunePos(){var ids={},ch=false;state.candies.forEach(function(c){ids[c.id]=1});
+  Object.keys(POS).forEach(function(k){if(!ids[k.split('#')[0]]){delete POS[k];ch=true}});if(ch)savePos()}
+function svgPt(ev){var s=$('jar'),m=s.getScreenCTM();if(!m)return null;var p=s.createSVGPoint();p.x=ev.clientX;p.y=ev.clientY;return p.matrixTransform(m.inverse())}
+$('pieces').addEventListener('pointerdown',function(ev){
+  var el=ev.target.closest('.pc');if(!el||el.classList.contains('leaving')||(ev.pointerType==='mouse'&&ev.button!==0))return;
+  var p=svgPt(ev);if(!p||el.__x==null)return;
+  drag={el:el,key:el.getAttribute('data-k'),id:ev.pointerId,sx:ev.clientX,sy:ev.clientY,ox:el.__x-p.x,oy:el.__y-p.y,moved:false,x:el.__x,y:el.__y,lt:ev.timeStamp,vx:0,vy:0,hit:false,last:-1e9};
+});
+document.addEventListener('pointermove',function(ev){
+  if(!drag||ev.pointerId!==drag.id)return;
+  var el=drag.el;
+  if(!drag.moved){
+    if(Math.hypot(ev.clientX-drag.sx,ev.clientY-drag.sy)<7)return;
+    drag.moved=true;el.classList.add('drag');el.parentNode.appendChild(el);
+    try{el.setPointerCapture(ev.pointerId)}catch(e){}
+  }
+  ev.preventDefault();
+  var p=svgPt(ev);if(!p)return;
+  var r=el.__r||20, tx=p.x+drag.ox, ty=p.y+drag.oy, c=clampPos(tx,ty,r), dt=Math.max(8,ev.timeStamp-drag.lt);
+  var sp=Math.hypot(tx-drag.x,ty-drag.y)/dt;
+  /* 壁・底に「あたった瞬間」だけ鳴らす（同じ飴は 80ms に1回まで） */
+  if(c.hit&&!drag.hit&&sp>.2&&ev.timeStamp-drag.last>80){drag.last=ev.timeStamp;clink(Math.min(1,.25+sp/1.5))}
+  drag.hit=c.hit;
+  drag.vx=(c.x-drag.x)/dt;drag.vy=(c.y-drag.y)/dt;drag.lt=ev.timeStamp;drag.x=c.x;drag.y=c.y;
+  el.style.transform='translate('+c.x.toFixed(1)+'px,'+c.y.toFixed(1)+'px) scale(1.15)';
+},{passive:false});
+function endDrag(ev){
+  if(!drag||ev.pointerId!==drag.id)return;
+  var d=drag;drag=null;if(!d.moved)return;
+  suppressClick=Date.now()+500;
+  var el=d.el;el.classList.remove('drag');
+  el.__x=d.x;el.__y=d.y;POS[d.key]=[+d.x.toFixed(1),+d.y.toFixed(1)];savePos();
+  el.style.transform='translate('+d.x.toFixed(1)+'px,'+d.y.toFixed(1)+'px)';
+  /* 置いたときに小さく「コトン」 */
+  var sp=Math.hypot(d.vx,d.vy);setTimeout(function(){clink(.3+Math.min(.5,sp))},140);
+}
+document.addEventListener('touchmove',function(ev){if(drag&&drag.moved)ev.preventDefault()},{passive:false});
+document.addEventListener('pointerdown',function(){suppressClick=0},true); /* 次のタッチが始まったら、もう抑えない */
+document.addEventListener('pointerup',endDrag);
+document.addEventListener('pointercancel',endDrag);
+/* ドラッグのあとの click では飴をひらかない */
+document.addEventListener('click',function(ev){if(Date.now()<suppressClick&&ev.target.closest&&ev.target.closest('.pc')){ev.stopPropagation();ev.preventDefault();suppressClick=0}},true);
 
 /* ---------- start ---------- */
 if(API.cached){var cached=API.cached();if(cached)apply(cached)}
