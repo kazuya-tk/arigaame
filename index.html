@@ -53,9 +53,16 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
 #glow{transition:transform 1.4s cubic-bezier(.3,1.1,.5,1)}
 #glow path{animation:wave 6s ease-in-out infinite alternate}
 @keyframes wave{from{transform:translateX(-40px)}to{transform:translateX(0)}}
-.empty{position:absolute;left:0;right:0;top:56%;text-align:center;font-size:13px;font-weight:800;color:var(--soft);pointer-events:none;display:none}
-.empty svg{width:54px;height:54px;display:block;margin:0 auto 4px;opacity:.6}
+.empty{position:absolute;left:0;right:0;top:56%;z-index:3;text-align:center;pointer-events:none;display:none}
 .empty.on{display:block}
+/* 空の瓶のまんなかの ＋：押すと飴を入れる画面（右下のボタンと同じ）。押せるのはこのボタンの形のところだけ */
+.empty button{pointer-events:auto;display:inline-block;margin:0;padding:6px 14px 8px;border:0;border-radius:18px;background:none;font:inherit;font-size:13px;font-weight:800;color:var(--soft);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .15s,background-color .15s}
+.empty button:hover{background:rgba(255,255,255,.45)}
+.empty button:active{transform:scale(.9);background:rgba(255,255,255,.6)}
+.empty button:focus-visible{outline:3px solid var(--pink);outline-offset:2px}
+.empty svg{width:54px;height:54px;display:block;margin:0 auto 4px;opacity:.75;transition:opacity .15s}
+.empty button:active svg{opacity:1}
 .bubble{position:absolute;top:1%;right:-2%;max-width:44%;background:#fff;border-radius:16px 16px 16px 4px;padding:6px 10px;font-size:11.5px;font-weight:800;line-height:1.35;
   box-shadow:0 3px 0 var(--line),0 6px 18px rgba(240,99,143,.15);transition:opacity .4s,transform .4s;word-break:break-word}
 .bubble.hide{opacity:0;transform:translateY(6px) scale(.95)}
@@ -296,7 +303,7 @@ button{cursor:pointer;border:none;background:none;padding:0;touch-action:manipul
         <path transform="translate(12,43) scale(8.5)" d="M0,.85C-.2,.7-1,.25-1,-.25C-1,-.65-.65,-.9-.35,-.9C-.15,-.9 0,-.75 0,-.6C0,-.75 .15,-.9 .35,-.9C.65,-.9 1,-.65 1,-.25C1,.25 .2,.7 0,.85Z" fill="#ff6f9f"/>
       </g>
     </svg>
-    <div class="empty" id="empty"><svg viewBox="-1.6 -1.6 3.2 3.2"><circle r="1" fill="none" stroke="#c9b6c4" stroke-width=".12" stroke-dasharray=".3 .22"/><path d="M-.35,0H.35M0,-.35V.35" stroke="#c9b6c4" stroke-width=".14" stroke-linecap="round"/></svg>飴を入れてね</div>
+    <div class="empty" id="empty"><button type="button" data-act="add" aria-label="飴を入れる"><svg viewBox="-1.6 -1.6 3.2 3.2" aria-hidden="true"><circle r="1" fill="none" stroke="#c9b6c4" stroke-width=".12" stroke-dasharray=".3 .22"/><path d="M-.35,0H.35M0,-.35V.35" stroke="#c9b6c4" stroke-width=".14" stroke-linecap="round"/></svg>飴を入れてね</button></div>
     <div class="loading" id="loading">🍬</div>
     <div class="bubble hide" id="bubble"></div>
   </div>
